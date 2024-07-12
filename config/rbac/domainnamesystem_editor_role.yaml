@@ -1,0 +1,27 @@
+# permissions for end users to edit domainnamesystems.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-cdn
+    app.kubernetes.io/managed-by: kustomize
+  name: domainnamesystem-editor-role
+rules:
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - domainnamesystems
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - domainnamesystems/status
+  verbs:
+  - get

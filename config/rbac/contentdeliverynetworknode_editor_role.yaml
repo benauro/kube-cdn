@@ -1,0 +1,27 @@
+# permissions for end users to edit contentdeliverynetworknodes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-cdn
+    app.kubernetes.io/managed-by: kustomize
+  name: contentdeliverynetworknode-editor-role
+rules:
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - contentdeliverynetworknodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - contentdeliverynetworknodes/status
+  verbs:
+  - get

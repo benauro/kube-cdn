@@ -1,4 +1,6 @@
 ## Append samples of your project ##
 resources:
 - cdn_v3_contentdeliverynetwork.yaml
+- cdn_v3_contentdeliverynetworknode.yaml
+- cdn_v3_domainnamesystem.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

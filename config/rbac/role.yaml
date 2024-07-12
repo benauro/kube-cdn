@@ -19,6 +19,32 @@ rules:
 - apiGroups:
   - cdn.benauro.gg
   resources:
+  - contentdeliverynetworknodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - contentdeliverynetworknodes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - contentdeliverynetworknodes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
   - contentdeliverynetworks
   verbs:
   - create
@@ -38,6 +64,32 @@ rules:
   - cdn.benauro.gg
   resources:
   - contentdeliverynetworks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - domainnamesystems
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - domainnamesystems/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - domainnamesystems/status
   verbs:
   - get
   - patch

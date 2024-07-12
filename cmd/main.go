@@ -129,6 +129,20 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ContentDeliveryNetwork")
 		os.Exit(1)
 	}
+	if err = (&controller.ContentDeliveryNetworkNodeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ContentDeliveryNetworkNode")
+		os.Exit(1)
+	}
+	if err = (&controller.DomainNameSystemReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DomainNameSystem")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

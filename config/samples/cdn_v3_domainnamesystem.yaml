@@ -1,0 +1,9 @@
+apiVersion: cdn.benauro.gg/v3
+kind: DomainNameSystem
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-cdn
+    app.kubernetes.io/managed-by: kustomize
+  name: domainnamesystem-sample
+spec:
+  # TODO(user): Add fields here

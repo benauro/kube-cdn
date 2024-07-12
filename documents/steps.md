@@ -13,6 +13,12 @@
     kubebuilder create api --group cdn --version v3 --kind ContentDeliveryNetwork
     ```
     ```
+    kubebuilder create api --group cdn --version v3 --kind ContentDeliveryNetworkNode
+    ```
+    ```
+    kubebuilder create api --group cdn --version v3 --kind DomainNameSystem
+    ```
+    ```
     make manifests
     ```
 

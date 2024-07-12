@@ -17,4 +17,22 @@ resources:
   kind: ContentDeliveryNetwork
   path: github.com/benauro/kube-cdn/api/v3
   version: v3
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: benauro.gg
+  group: cdn
+  kind: ContentDeliveryNetworkNode
+  path: github.com/benauro/kube-cdn/api/v3
+  version: v3
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: benauro.gg
+  group: cdn
+  kind: DomainNameSystem
+  path: github.com/benauro/kube-cdn/api/v3
+  version: v3
 version: "3"

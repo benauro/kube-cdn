@@ -1,0 +1,23 @@
+# permissions for end users to view domainnamesystems.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-cdn
+    app.kubernetes.io/managed-by: kustomize
+  name: domainnamesystem-viewer-role
+rules:
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - domainnamesystems
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - domainnamesystems/status
+  verbs:
+  - get

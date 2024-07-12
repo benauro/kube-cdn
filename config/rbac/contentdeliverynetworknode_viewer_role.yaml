@@ -1,0 +1,23 @@
+# permissions for end users to view contentdeliverynetworknodes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-cdn
+    app.kubernetes.io/managed-by: kustomize
+  name: contentdeliverynetworknode-viewer-role
+rules:
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - contentdeliverynetworknodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cdn.benauro.gg
+  resources:
+  - contentdeliverynetworknodes/status
+  verbs:
+  - get
