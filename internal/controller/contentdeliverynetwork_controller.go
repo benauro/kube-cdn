@@ -24,12 +24,18 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
 	cdnv3 "github.com/benauro/kube-cdn/api/v3"
 )
@@ -43,6 +49,9 @@ type ContentDeliveryNetworkReconciler struct {
 //+kubebuilder:rbac:groups=cdn.benauro.gg,resources=contentdeliverynetworks,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=cdn.benauro.gg,resources=contentdeliverynetworks/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=cdn.benauro.gg,resources=contentdeliverynetworks/finalizers,verbs=update
+
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -73,6 +82,17 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 		logger.Error(err, "Failed to auto-scale CDN nodes")
 		return ctrl.Result{}, err
 	}
+	// Handle networking
+	if err := r.reconcileNetworking(ctx, &cdn); err != nil {
+		logger.Error(err, "Failed to reconcile networking")
+		return ctrl.Result{}, err
+	}
+
+	// Handle storage
+	if err := r.reconcileStorage(ctx, &cdn); err != nil {
+		logger.Error(err, "Failed to reconcile storage")
+		return ctrl.Result{}, err
+	}
 
 	// Update metrics
 	if err := r.updateMetrics(ctx, &cdn); err != nil {
@@ -91,6 +111,14 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 
 	// Requeue per minute
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *ContentDeliveryNetworkReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&cdnv3.ContentDeliveryNetwork{}).
+		Owns(&appsv1.Deployment{}).
+		Complete(r)
 }
 
 func (r *ContentDeliveryNetworkReconciler) applyCacheRules(cdn *cdnv3.ContentDeliveryNetwork) error {
@@ -130,12 +158,65 @@ func (r *ContentDeliveryNetworkReconciler) updateMetrics(ctx context.Context, cd
 	return nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *ContentDeliveryNetworkReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&cdnv3.ContentDeliveryNetwork{}).
-		Owns(&appsv1.Deployment{}).
-		Complete(r)
+func (r *ContentDeliveryNetworkReconciler) reconcileNetworking(ctx context.Context, cdn *cdnv3.ContentDeliveryNetwork) error {
+	networkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cdn.Name + "-network-policy",
+			Namespace: cdn.Namespace,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": cdn.Name},
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					Ports: []networkingv1.NetworkPolicyPort{
+						{Port: &intstr.IntOrString{Type: intstr.Int, IntVal: 80}},
+					},
+				},
+			},
+		},
+	}
+
+	if err := r.Create(ctx, networkPolicy); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *ContentDeliveryNetworkReconciler) reconcileStorage(ctx context.Context, cdn *cdnv3.ContentDeliveryNetwork) error {
+	// Create or update DataVolume
+	dataVolume := &cdiv1.DataVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cdn.Name + "-data",
+			Namespace: cdn.Namespace,
+		},
+		Spec: cdiv1.DataVolumeSpec{
+			Source: &cdiv1.DataVolumeSource{
+				Blank: &cdiv1.DataVolumeBlankImage{},
+			},
+			PVC: &corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("10Gi"),
+					},
+				},
+			},
+		},
+	}
+
+	err := r.Create(ctx, dataVolume)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	if errors.IsAlreadyExists(err) {
+		return r.Update(ctx, dataVolume)
+	}
+
+	return nil
 }
 
 func calculateDesiredReplicas(cdn *cdnv3.ContentDeliveryNetwork) int {
@@ -173,9 +254,21 @@ func (r *ContentDeliveryNetworkReconciler) createCDNDeployment(ctx context.Conte
 						{
 							Name:  "cdn-node",
 							Image: "your-cdn-node-image:latest",
-							Env: []corev1.EnvVar{
-								{Name: "ORIGIN", Value: cdn.Spec.Origin},
-								{Name: "DOMAIN_NAME", Value: cdn.Spec.DomainName},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "content",
+									MountPath: "/data",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "content",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: cdn.Name + "-storage",
+								},
 							},
 						},
 					},

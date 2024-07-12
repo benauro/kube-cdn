@@ -28,3 +28,8 @@
     ```
     make run
     ```
+
+- Deploy Controller
+    ```
+    make deploy
+    ```
