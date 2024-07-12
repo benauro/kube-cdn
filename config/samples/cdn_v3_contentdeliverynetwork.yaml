@@ -6,4 +6,18 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: contentdeliverynetwork-sample
 spec:
-  # TODO(user): Add fields here
+  origin: "https://origin.example.com"
+  domainName: "cdn.example.com"
+  cacheRules:
+    - pathPattern: "/static/*"
+      ttl: 3600  # 1 hour
+    - pathPattern: "/images/*"
+      ttl: 86400  # 24 hours
+    - pathPattern: "/api/*"
+      ttl: 60  # 1 minute
+  sslConfig:
+    enabled: true
+    cert: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCi4uLgo="
+    key: "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCi4uLgo="
+  minReplicas: 2
+  maxReplicas: 10

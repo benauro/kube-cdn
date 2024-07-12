@@ -18,8 +18,13 @@ package controller
 
 import (
 	"context"
+	"math"
+	"strconv"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -57,9 +62,26 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Update status
+	// Apply caching rules
+	if err := r.applyCacheRules(&cdn); err != nil {
+		logger.Error(err, "Failed to apply cache rules")
+		return ctrl.Result{}, err
+	}
+
+	// Auto scaling
+	if err := r.autoScale(ctx, &cdn); err != nil {
+		logger.Error(err, "Failed to auto-scale CDN nodes")
+		return ctrl.Result{}, err
+	}
+
+	// Update metrics
+	if err := r.updateMetrics(ctx, &cdn); err != nil {
+		logger.Error(err, "Failed to update metrics")
+		return ctrl.Result{}, err
+	}
+
+	// Updata status
 	cdn.Status.State = "Ready"
-	cdn.Status.Nodes = []string{"10.0.0.1", "10.0.0.2"}
 	cdn.Status.LastUpdated = metav1.Now()
 
 	if err := r.Status().Update(ctx, &cdn); err != nil {
@@ -67,13 +89,104 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 		return ctrl.Result{}, err
 	}
 
-	// Reconcile again every 5 minutes
-	return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+	// Requeue per minute
+	return ctrl.Result{RequeueAfter: time.Minute}, nil
+}
+
+func (r *ContentDeliveryNetworkReconciler) applyCacheRules(cdn *cdnv3.ContentDeliveryNetwork) error {
+	// TODO:
+	_ = cdn
+	return nil
+}
+
+func (r *ContentDeliveryNetworkReconciler) autoScale(ctx context.Context, cdn *cdnv3.ContentDeliveryNetwork) error {
+	// Get current deployment
+	deployment := &appsv1.Deployment{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: cdn.Namespace, Name: cdn.Name + "-deployment"}, deployment)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Creat one if not found
+			return r.createCDNDeployment(ctx, cdn)
+		}
+		return err
+	}
+
+	// Decide whether to auto-scale or not
+	desiredReplicas := int32(calculateDesiredReplicas(cdn))
+
+	if *deployment.Spec.Replicas != desiredReplicas {
+		deployment.Spec.Replicas = &desiredReplicas
+		if err := r.Update(ctx, deployment); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *ContentDeliveryNetworkReconciler) updateMetrics(ctx context.Context, cdn *cdnv3.ContentDeliveryNetwork) error {
+	// TODO:
+	_, _ = ctx, cdn
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ContentDeliveryNetworkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cdnv3.ContentDeliveryNetwork{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
+}
+
+func calculateDesiredReplicas(cdn *cdnv3.ContentDeliveryNetwork) int {
+	requestsPerReplica := 100.0 // Assume each replica can handle 100 QPS
+	requestsPerSecond, _ := strconv.ParseFloat(cdn.Status.Metrics.RequestsPerSecond, 64)
+	desiredReplicas := int(math.Ceil(requestsPerSecond / requestsPerReplica))
+
+	if desiredReplicas < cdn.Spec.MinReplicas {
+		return cdn.Spec.MinReplicas
+	}
+	if desiredReplicas > cdn.Spec.MaxReplicas {
+		return cdn.Spec.MaxReplicas
+	}
+	return desiredReplicas
+}
+
+func (r *ContentDeliveryNetworkReconciler) createCDNDeployment(ctx context.Context, cdn *cdnv3.ContentDeliveryNetwork) error {
+	replicas := int32(cdn.Spec.MinReplicas)
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cdn.Name + "-deployment",
+			Namespace: cdn.Namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": cdn.Name},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": cdn.Name},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "cdn-node",
+							Image: "your-cdn-node-image:latest",
+							Env: []corev1.EnvVar{
+								{Name: "ORIGIN", Value: cdn.Spec.Origin},
+								{Name: "DOMAIN_NAME", Value: cdn.Spec.DomainName},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if err := r.Create(ctx, deployment); err != nil {
+		return err
+	}
+
+	return nil
 }

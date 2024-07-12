@@ -35,10 +35,22 @@ type (
 		DomainName string `json:"domainName"`
 		// Caching policy
 		CacheBehavior string `json:"cacheBehavior,omitempty"`
+		// Cache Rules
+		CacheRules []CacheRule `json:"cacheRules,omitempty"`
 		// SSL/TLS configuration
 		SSLConfig *SSLConfig `json:"sslConfig,omitempty"`
+		// Replicas
+		MinReplicas int `json:"minReplicas"`
+		MaxReplicas int `json:"maxReplicas"`
 	}
 
+	// CacheRule defines a specific caching rule
+	CacheRule struct {
+		PathPattern string `json:"pathPattern"`
+		TTL         int    `json:"ttl"` // in seconds
+	}
+
+	// SSLConfig defines the SSL/TLS configuration for the CDN
 	SSLConfig struct {
 		Enabled bool   `json:"enabled"`
 		Cert    string `json:"cert,omitempty"`
@@ -47,17 +59,28 @@ type (
 )
 
 // ContentDeliveryNetworkStatus defines the observed state of ContentDeliveryNetwork
-type ContentDeliveryNetworkStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+type (
+	ContentDeliveryNetworkStatus struct {
+		// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+		// Important: Run "make" to regenerate code after modifying this file
 
-	// CDN distribution status
-	State string `json:"state"`
-	// List of IP addresses of the CDN nodes
-	Nodes []string `json:"nodes,omitempty"`
-	// Last updated time
-	LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
-}
+		// CDN distribution status
+		State string `json:"state"`
+		// List of IP addresses of the CDN nodes
+		Nodes []string `json:"nodes,omitempty"`
+		// Last updated time
+		LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
+		// Metrics for monitoring
+		Metrics CDNMetrics `json:"metrics,omitempty"`
+	}
+
+	// CDNMetrics contains monitoring metrics for the CDN
+	CDNMetrics struct {
+		RequestsPerSecond string `json:"requestsPerSecond"`
+		CacheHitRate      string `json:"cacheHitRate"`
+		AverageLatency    string `json:"averageLatency"` // in milliseconds
+	}
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status

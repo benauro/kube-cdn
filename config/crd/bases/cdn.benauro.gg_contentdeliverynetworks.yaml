@@ -42,9 +42,28 @@ spec:
               cacheBehavior:
                 description: Caching policy
                 type: string
+              cacheRules:
+                description: Cache Rules
+                items:
+                  description: CacheRule defines a specific caching rule
+                  properties:
+                    pathPattern:
+                      type: string
+                    ttl:
+                      type: integer
+                  required:
+                  - pathPattern
+                  - ttl
+                  type: object
+                type: array
               domainName:
                 description: CDN node domain name
                 type: string
+              maxReplicas:
+                type: integer
+              minReplicas:
+                description: Replicas
+                type: integer
               origin:
                 description: Source of the original content
                 type: string
@@ -62,16 +81,30 @@ spec:
                 type: object
             required:
             - domainName
+            - maxReplicas
+            - minReplicas
             - origin
             type: object
           status:
-            description: ContentDeliveryNetworkStatus defines the observed state of
-              ContentDeliveryNetwork
             properties:
               lastUpdated:
                 description: Last updated time
                 format: date-time
                 type: string
+              metrics:
+                description: Metrics for monitoring
+                properties:
+                  averageLatency:
+                    type: string
+                  cacheHitRate:
+                    type: string
+                  requestsPerSecond:
+                    type: string
+                required:
+                - averageLatency
+                - cacheHitRate
+                - requestsPerSecond
+                type: object
               nodes:
                 description: List of IP addresses of the CDN nodes
                 items:
