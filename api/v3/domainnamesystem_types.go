@@ -28,14 +28,18 @@ type DomainNameSystemSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of DomainNameSystem. Edit domainnamesystem_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Replicas
+	MinReplicas int `json:"minReplicas"`
+	MaxReplicas int `json:"maxReplicas"`
 }
 
 // DomainNameSystemStatus defines the observed state of DomainNameSystem
 type DomainNameSystemStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// DNS status
+	State string `json:"state"`
 }
 
 //+kubebuilder:object:root=true
