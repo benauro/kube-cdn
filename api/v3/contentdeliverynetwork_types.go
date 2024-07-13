@@ -17,6 +17,7 @@ limitations under the License.
 package v3
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,6 +30,9 @@ type (
 		// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 		// Important: Run "make" to regenerate code after modifying this file
 
+		DNS      DomainNameSystem             `json:"dns"`
+		CDNNodes []ContentDeliveryNetworkNode `json:"cdnNodes"`
+
 		// Source of the original content
 		Origin string `json:"origin"`
 		// CDN node domain name
@@ -39,6 +43,8 @@ type (
 		CacheRules []CacheRule `json:"cacheRules,omitempty"`
 		// SSL/TLS configuration
 		SSLConfig *SSLConfig `json:"sslConfig,omitempty"`
+		// Image pull policy
+		ImagePullPolicy corev1.PullPolicy
 		// Replicas
 		MinReplicas int `json:"minReplicas"`
 		MaxReplicas int `json:"maxReplicas"`
