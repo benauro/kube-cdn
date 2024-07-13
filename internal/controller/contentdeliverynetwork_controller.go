@@ -77,6 +77,12 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 		return ctrl.Result{}, err
 	}
 
+	// Handle service
+	if err := r.reconcileService(ctx, &cdn); err != nil {
+		logger.Error(err, "Failed to reconcile service")
+		return ctrl.Result{}, err
+	}
+
 	// Auto scaling
 	if err := r.autoScale(ctx, &cdn); err != nil {
 		logger.Error(err, "Failed to auto-scale CDN nodes")
@@ -117,6 +123,7 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 func (r *ContentDeliveryNetworkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cdnv3.ContentDeliveryNetwork{}).
+		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
@@ -124,6 +131,38 @@ func (r *ContentDeliveryNetworkReconciler) SetupWithManager(mgr ctrl.Manager) er
 func (r *ContentDeliveryNetworkReconciler) applyCacheRules(cdn *cdnv3.ContentDeliveryNetwork) error {
 	// TODO:
 	_ = cdn
+	return nil
+}
+
+func (r *ContentDeliveryNetworkReconciler) reconcileService(ctx context.Context, cdn *cdnv3.ContentDeliveryNetwork) error {
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cdn.Name + "-service",
+			Namespace: cdn.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{"app": cdn.Name},
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http",
+					Port:       80,
+					TargetPort: intstr.FromInt(80),
+					Protocol:   corev1.ProtocolTCP,
+				},
+			},
+			Type: corev1.ServiceTypeLoadBalancer,
+		},
+	}
+
+	err := r.Create(ctx, service)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	if errors.IsAlreadyExists(err) {
+		return r.Update(ctx, service)
+	}
+
 	return nil
 }
 
@@ -253,13 +292,14 @@ func (r *ContentDeliveryNetworkReconciler) createCDNDeployment(ctx context.Conte
 					Containers: []corev1.Container{
 						{
 							Name:  "cdn-node",
-							Image: "your-cdn-node-image:latest",
+							Image: "benauro/kube-cdn:latest",
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "content",
 									MountPath: "/data",
 								},
 							},
+							ImagePullPolicy: cdn.Spec.ImagePullPolicy, // Use imagePullPolicy from CDN spec
 						},
 					},
 					Volumes: []corev1.Volume{
