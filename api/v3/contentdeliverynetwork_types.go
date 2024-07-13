@@ -44,7 +44,7 @@ type (
 		// SSL/TLS configuration
 		SSLConfig *SSLConfig `json:"sslConfig,omitempty"`
 		// Image pull policy
-		ImagePullPolicy corev1.PullPolicy
+		ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 		// Replicas
 		MinReplicas int `json:"minReplicas"`
 		MaxReplicas int `json:"maxReplicas"`

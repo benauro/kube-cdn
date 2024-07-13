@@ -56,8 +56,99 @@ spec:
                   - ttl
                   type: object
                 type: array
+              cdnNodes:
+                items:
+                  description: ContentDeliveryNetworkNode is the Schema for the contentdeliverynetworknodes
+                    API
+                  properties:
+                    apiVersion:
+                      description: |-
+                        APIVersion defines the versioned schema of this representation of an object.
+                        Servers should convert recognized schemas to the latest internal value, and
+                        may reject unrecognized values.
+                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+                      type: string
+                    kind:
+                      description: |-
+                        Kind is a string value representing the REST resource this object represents.
+                        Servers may infer this from the endpoint the client submits requests to.
+                        Cannot be updated.
+                        In CamelCase.
+                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                      type: string
+                    metadata:
+                      type: object
+                    spec:
+                      description: ContentDeliveryNetworkNodeSpec defines the desired
+                        state of ContentDeliveryNetworkNode
+                      properties:
+                        cacheSize:
+                          description: Size for caching
+                          type: integer
+                      required:
+                      - cacheSize
+                      type: object
+                    status:
+                      description: ContentDeliveryNetworkNodeStatus defines the observed
+                        state of ContentDeliveryNetworkNode
+                      properties:
+                        available:
+                          type: boolean
+                      required:
+                      - available
+                      type: object
+                  type: object
+                type: array
+              dns:
+                description: DomainNameSystem is the Schema for the domainnamesystems
+                  API
+                properties:
+                  apiVersion:
+                    description: |-
+                      APIVersion defines the versioned schema of this representation of an object.
+                      Servers should convert recognized schemas to the latest internal value, and
+                      may reject unrecognized values.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+                    type: string
+                  kind:
+                    description: |-
+                      Kind is a string value representing the REST resource this object represents.
+                      Servers may infer this from the endpoint the client submits requests to.
+                      Cannot be updated.
+                      In CamelCase.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                    type: string
+                  metadata:
+                    type: object
+                  spec:
+                    description: DomainNameSystemSpec defines the desired state of
+                      DomainNameSystem
+                    properties:
+                      maxReplicas:
+                        type: integer
+                      minReplicas:
+                        description: Replicas
+                        type: integer
+                    required:
+                    - maxReplicas
+                    - minReplicas
+                    type: object
+                  status:
+                    description: DomainNameSystemStatus defines the observed state
+                      of DomainNameSystem
+                    properties:
+                      state:
+                        description: DNS status
+                        type: string
+                    required:
+                    - state
+                    type: object
+                type: object
               domainName:
                 description: CDN node domain name
+                type: string
+              imagePullPolicy:
+                description: Image pull policy
                 type: string
               maxReplicas:
                 type: integer
@@ -80,7 +171,10 @@ spec:
                 - enabled
                 type: object
             required:
+            - cdnNodes
+            - dns
             - domainName
+            - imagePullPolicy
             - maxReplicas
             - minReplicas
             - origin

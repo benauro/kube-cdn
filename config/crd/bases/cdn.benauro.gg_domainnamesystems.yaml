@@ -39,13 +39,23 @@ spec:
           spec:
             description: DomainNameSystemSpec defines the desired state of DomainNameSystem
             properties:
-              foo:
-                description: Foo is an example field of DomainNameSystem. Edit domainnamesystem_types.go
-                  to remove/update
-                type: string
+              maxReplicas:
+                type: integer
+              minReplicas:
+                description: Replicas
+                type: integer
+            required:
+            - maxReplicas
+            - minReplicas
             type: object
           status:
             description: DomainNameSystemStatus defines the observed state of DomainNameSystem
+            properties:
+              state:
+                description: DNS status
+                type: string
+            required:
+            - state
             type: object
         type: object
     served: true
