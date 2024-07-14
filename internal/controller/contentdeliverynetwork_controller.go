@@ -77,6 +77,12 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 		return ctrl.Result{}, err
 	}
 
+	// Handle ingress
+	if err := r.reconcileIngress(ctx, &cdn); err != nil {
+		logger.Error(err, "Failed to reconcile ingress")
+		return ctrl.Result{}, err
+	}
+
 	// Handle service
 	if err := r.reconcileService(ctx, &cdn); err != nil {
 		logger.Error(err, "Failed to reconcile service")
@@ -88,6 +94,7 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 		logger.Error(err, "Failed to auto-scale CDN nodes")
 		return ctrl.Result{}, err
 	}
+
 	// Handle networking
 	if err := r.reconcileNetworking(ctx, &cdn); err != nil {
 		logger.Error(err, "Failed to reconcile networking")
@@ -123,6 +130,7 @@ func (r *ContentDeliveryNetworkReconciler) Reconcile(ctx context.Context, req ct
 func (r *ContentDeliveryNetworkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cdnv3.ContentDeliveryNetwork{}).
+		Owns(&networkingv1.Ingress{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
@@ -194,6 +202,57 @@ func (r *ContentDeliveryNetworkReconciler) autoScale(ctx context.Context, cdn *c
 func (r *ContentDeliveryNetworkReconciler) updateMetrics(ctx context.Context, cdn *cdnv3.ContentDeliveryNetwork) error {
 	// TODO:
 	_, _ = ctx, cdn
+	return nil
+}
+
+func (r *ContentDeliveryNetworkReconciler) reconcileIngress(ctx context.Context, cdn *cdnv3.ContentDeliveryNetwork) error {
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cdn.Name + "-ingress",
+			Namespace: cdn.Namespace,
+			Annotations: map[string]string{
+				"nginx.ingress.kubernetes.io/rewrite-target": "/$1",
+			},
+		},
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{
+				{
+					Host: cdn.Spec.DomainName,
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									PathType: func() *networkingv1.PathType {
+										t := networkingv1.PathTypePrefix
+										return &t
+									}(),
+									Path: "/",
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: cdn.Name + "-service",
+											Port: networkingv1.ServiceBackendPort{
+												Number: 80,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := r.Create(ctx, ingress)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	if errors.IsAlreadyExists(err) {
+		return r.Update(ctx, ingress)
+	}
+
 	return nil
 }
 
